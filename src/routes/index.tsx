@@ -31,7 +31,9 @@ function Home() {
   const [recent, setRecent] = useState<Link[]>([]);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const [origin, setOrigin] = useState("");
+  useEffect(() => { setOrigin(window.location.origin); }, []);
+
 
   const loadRecent = async () => {
     const { data } = await supabase

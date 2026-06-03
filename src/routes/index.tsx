@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { Link2, Copy, Check, Zap, ExternalLink } from "lucide-react";
+import { Link2, Copy, Check, Zap, ExternalLink, X } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -15,36 +16,16 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-type Link = {
-  id: string;
-  slug: string;
-  target_url: string;
-  clicks: number;
-  created_at: string;
-};
-
 function Home() {
   const [url, setUrl] = useState("");
   const [slug, setSlug] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recent, setRecent] = useState<Link[]>([]);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
 
   const [origin, setOrigin] = useState("");
   useEffect(() => { setOrigin(window.location.origin); }, []);
-
-
-  const loadRecent = async () => {
-    const { data } = await supabase
-      .from("short_links")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(8);
-    if (data) setRecent(data as Link[]);
-  };
-
-  useEffect(() => { loadRecent(); }, []);
 
   const randomSlug = () =>
     Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 4);
@@ -76,14 +57,18 @@ function Home() {
 
     setUrl("");
     setSlug("");
-    loadRecent();
-    copy(`${origin}/${finalSlug}`);
+    setResultUrl(`${origin}/${finalSlug}`);
   };
 
   const copy = (text: string) => {
     navigator.clipboard.writeText(text);
-    setCopied(text);
-    setTimeout(() => setCopied(null), 1500);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const close = () => {
+    setResultUrl(null);
+    setCopied(false);
   };
 
   return (
@@ -92,7 +77,12 @@ function Home() {
       style={{ background: "var(--gradient-hero), var(--color-background)" }}
     >
       <div className="mx-auto max-w-3xl px-5 py-12 md:py-20">
-        <header className="mb-12 flex items-center gap-2">
+        <motion.header
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="mb-12 flex items-center gap-2"
+        >
           <div
             className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary"
             style={{ boxShadow: "var(--shadow-glow)" }}
@@ -100,9 +90,14 @@ function Home() {
             <Zap className="h-5 w-5 text-primary-foreground" />
           </div>
           <span className="text-lg font-semibold tracking-tight">shorty</span>
-        </header>
+        </motion.header>
 
-        <section className="mb-10">
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
+          className="mb-10"
+        >
           <h1 className="text-4xl font-bold tracking-tight md:text-6xl">
             Short links,<br />
             <span className="text-primary">your way.</span>
@@ -111,16 +106,19 @@ function Home() {
             Pick a custom name or let us generate one. Share a clean,
             memorable URL in seconds.
           </p>
-        </section>
+        </motion.section>
 
-        <form
+        <motion.form
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
           onSubmit={submit}
           className="rounded-2xl border bg-card p-5 shadow-2xl md:p-6"
         >
           <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Long URL
           </label>
-          <div className="mb-4 flex items-center gap-2 rounded-lg border bg-input px-3">
+          <div className="mb-4 flex items-center gap-2 rounded-lg border bg-input px-3 transition-colors focus-within:border-primary">
             <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
             <input
               type="text"
@@ -135,7 +133,7 @@ function Home() {
           <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Custom name <span className="normal-case text-muted-foreground/70">(optional)</span>
           </label>
-          <div className="flex items-stretch gap-2 rounded-lg border bg-input pl-3 font-mono text-sm">
+          <div className="flex items-stretch gap-2 rounded-lg border bg-input pl-3 font-mono text-sm transition-colors focus-within:border-primary">
             <span className="flex items-center text-muted-foreground">
               {origin.replace(/^https?:\/\//, "")}/
             </span>
@@ -150,80 +148,127 @@ function Home() {
             />
           </div>
 
-          {error && (
-            <p className="mt-3 text-sm text-destructive">{error}</p>
-          )}
+          <AnimatePresence>
+            {error && (
+              <motion.p
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto", marginTop: 12 }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                className="text-sm text-destructive"
+              >
+                {error}
+              </motion.p>
+            )}
+          </AnimatePresence>
 
-          <button
+          <motion.button
+            whileTap={{ scale: 0.97 }}
             type="submit"
             disabled={loading}
             className="mt-5 w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
             style={{ boxShadow: "var(--shadow-glow)" }}
           >
             {loading ? "Creating..." : "Shorten URL"}
-          </button>
-        </form>
-
-        {recent.length > 0 && (
-          <section className="mt-12">
-            <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Recent links
-            </h2>
-            <ul className="space-y-2">
-              {recent.map((link) => {
-                const shortUrl = `${origin}/${link.slug}`;
-                return (
-                  <li
-                    key={link.id}
-                    className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <a
-                        href={shortUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block truncate font-mono text-sm text-primary hover:underline"
-                      >
-                        /{link.slug}
-                      </a>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {link.target_url}
-                      </p>
-                    </div>
-                    <span className="hidden text-xs text-muted-foreground sm:inline">
-                      {link.clicks} clicks
-                    </span>
-                    <button
-                      onClick={() => copy(shortUrl)}
-                      className="rounded-md border p-2 transition hover:bg-secondary"
-                      aria-label="Copy"
-                    >
-                      {copied === shortUrl ? (
-                        <Check className="h-4 w-4 text-primary" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </button>
-                    <a
-                      href={shortUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-md border p-2 transition hover:bg-secondary"
-                      aria-label="Open"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
+          </motion.button>
+        </motion.form>
 
         <footer className="mt-16 text-center text-xs text-muted-foreground">
           Deployable on Vercel & Cloudflare Workers.
         </footer>
       </div>
+
+      <AnimatePresence>
+        {resultUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            onClick={close}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center"
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0, scale: 0.96 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 40, opacity: 0, scale: 0.96 }}
+              transition={{ type: "spring", damping: 28, stiffness: 320 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md rounded-t-3xl border bg-card p-6 shadow-2xl sm:rounded-3xl"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <motion.div
+                    initial={{ scale: 0, rotate: -90 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.1 }}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-primary"
+                    style={{ boxShadow: "var(--shadow-glow)" }}
+                  >
+                    <Check className="h-4 w-4 text-primary-foreground" strokeWidth={3} />
+                  </motion.div>
+                  <h3 className="text-base font-semibold">Link ready</h3>
+                </div>
+                <button
+                  onClick={close}
+                  className="rounded-full p-1.5 text-muted-foreground transition hover:bg-secondary"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <p className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">
+                Your short link
+              </p>
+              <div className="mb-4 flex items-center gap-2 rounded-xl border bg-input px-3 py-3 font-mono text-sm">
+                <span className="flex-1 truncate text-foreground">{resultUrl}</span>
+              </div>
+
+              <div className="flex gap-2">
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => copy(resultUrl)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+                  style={{ boxShadow: "var(--shadow-glow)" }}
+                >
+                  <AnimatePresence mode="wait" initial={false}>
+                    {copied ? (
+                      <motion.span
+                        key="copied"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        className="flex items-center gap-2"
+                      >
+                        <Check className="h-4 w-4" /> Copied
+                      </motion.span>
+                    ) : (
+                      <motion.span
+                        key="copy"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        className="flex items-center gap-2"
+                      >
+                        <Copy className="h-4 w-4" /> Copy
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+                <motion.a
+                  whileTap={{ scale: 0.96 }}
+                  href={resultUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl border bg-secondary px-4 py-3 text-sm font-semibold transition hover:opacity-90"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </motion.a>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }
